@@ -1,0 +1,29 @@
+{
+  "name": "applied-job-link-tracker",
+  "version": "0.1.0",
+  "description": "A Chrome/Edge web extension that automatically saves direct job-post links when it detects that a job application has been submitted.",
+  "private": true,
+  "scripts": {
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ManvithMadhuvarsu/applied-job-link-tracker.git"
+  },
+  "keywords": [
+    "browser-extension",
+    "jobs",
+    "applications",
+    "chrome-extension"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ManvithMadhuvarsu/applied-job-link-tracker/issues"
+  },
+  "homepage": "https://github.com/ManvithMadhuvarsu/applied-job-link-tracker#readme",
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.8"
+  }
+}
