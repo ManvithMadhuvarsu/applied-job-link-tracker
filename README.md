@@ -24,6 +24,15 @@ A Chrome/Edge web extension that automatically saves direct job-post links when 
 
 After that, the extension works automatically on HTTP and HTTPS pages, including embedded application frames. You do not need to click anything in the extension while applying.
 
+## Validate locally
+
+Install dev dependencies and run the test suite:
+
+```text
+npm install
+npm test
+```
+
 ## Notes
 
 This uses browser-side heuristics because job sites and applicant tracking systems do not expose one universal "application submitted" event. It should work well on common flows like LinkedIn, Indeed, Greenhouse, Lever, Ashby, Workday, SmartRecruiters, iCIMS, and similar platforms, but some sites may need a custom rule if they use unusual wording or hide confirmation messages inside private iframes.
