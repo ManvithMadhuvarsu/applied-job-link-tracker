@@ -54,6 +54,67 @@ describe("background storage", () => {
   });
 });
 
+describe("content script capture", () => {
+  it("sends a save message after an apply action reaches a success state", async () => {
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Frontend Engineer - Example Co</title>
+          <link rel="canonical" href="https://jobs.example.com/roles/frontend-engineer?utm_source=feed">
+          <script type="application/ld+json">
+            {
+              "@type": "JobPosting",
+              "title": "Frontend Engineer",
+              "hiringOrganization": { "name": "Example Co" }
+            }
+          </script>
+        </head>
+        <body>
+          <main>
+            <h1>Frontend Engineer</h1>
+            <button id="apply">Submit application</button>
+            <section id="status">Your application has been successfully submitted.</section>
+          </main>
+        </body>
+      </html>
+    `, {
+      url: "https://jobs.example.com/roles/frontend-engineer/apply",
+      pretendToBeVisual: true,
+      runScripts: "outside-only"
+    });
+
+    const messages = [];
+    const { window } = dom;
+    const script = fs.readFileSync(path.join(rootDir, "src/content-script.js"), "utf8");
+
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          messages.push(message);
+          callback?.({ ok: true });
+        },
+        lastError: null
+      }
+    };
+
+    window.eval(script);
+    window.document.querySelector("#apply").dispatchEvent(
+      new window.MouseEvent("click", { bubbles: true })
+    );
+
+    await waitFor(() => messages.length > 0, 2500);
+
+    expect(messages[0].type).toBe("job-link-saver:save");
+    expect(messages[0].payload).toMatchObject({
+      url: "https://jobs.example.com/roles/frontend-engineer",
+      title: "Frontend Engineer",
+      company: "Example Co"
+    });
+    expect(messages[0].payload.evidence).toContain("successfully submitted");
+  });
+});
+
 describe("popup", () => {
   it("renders saved applications and exports URLs", async () => {
     const dom = new JSDOM(fs.readFileSync(path.join(rootDir, "popup/popup.html"), "utf8"), {

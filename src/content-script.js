@@ -89,7 +89,8 @@
     pending: null,
     lastHref: location.href,
     recentSaves: new Map(),
-    scanTimer: null
+    scanTimer: null,
+    followUpTimers: new Set()
   };
 
   document.addEventListener("click", handleActivation, true);
@@ -182,9 +183,9 @@
       jobUrl: getBestJobUrl()
     };
 
-    scheduleScan(`${source} pending`, 600);
-    scheduleScan(`${source} follow-up`, 1800);
-    scheduleScan(`${source} late follow-up`, 5000);
+    scheduleScan(`${source} pending`, 600, { replace: false });
+    scheduleScan(`${source} follow-up`, 1800, { replace: false });
+    scheduleScan(`${source} late follow-up`, 5000, { replace: false });
   }
 
   function isApplicationAction(element) {
@@ -209,11 +210,26 @@
       && /application|applicant|candidate|resume|cover letter|job|career|position/i.test(nearbyText);
   }
 
-  function scheduleScan(reason, delay = 700) {
-    window.clearTimeout(state.scanTimer);
-    state.scanTimer = window.setTimeout(() => {
+  function scheduleScan(reason, delay = 700, options = {}) {
+    const replace = options.replace !== false;
+
+    if (replace) {
+      window.clearTimeout(state.scanTimer);
+    }
+
+    const timer = window.setTimeout(() => {
+      if (!replace) {
+        state.followUpTimers.delete(timer);
+      }
+
       scanForCompletion(reason);
     }, delay);
+
+    if (replace) {
+      state.scanTimer = timer;
+    } else {
+      state.followUpTimers.add(timer);
+    }
   }
 
   function scanForCompletion(reason) {
