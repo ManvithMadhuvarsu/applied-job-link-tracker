@@ -52,6 +52,25 @@ describe("background storage", () => {
     expect(response.entries[0].url).toBe("https://linkedin.com/jobs/view/123/");
     expect(harness.badgeText).toBe("1");
   });
+
+  it("clears saved links and resets the badge", async () => {
+    const harness = createBackgroundHarness();
+
+    await harness.dispatchMessage({
+      type: "job-link-saver:save",
+      payload: {
+        url: "https://jobs.example.com/roles/frontend-engineer",
+        title: "Frontend Engineer"
+      }
+    });
+
+    const clearResponse = await harness.dispatchMessage({ type: "job-link-saver:clear" });
+    const listResponse = await harness.dispatchMessage({ type: "job-link-saver:list" });
+
+    expect(clearResponse).toEqual({ ok: true, entries: [] });
+    expect(listResponse.entries).toEqual([]);
+    expect(harness.badgeText).toBe("");
+  });
 });
 
 describe("content script capture", () => {
@@ -173,11 +192,12 @@ function createBackgroundHarness() {
     },
     storage: {
       local: {
-        async get(defaults) {
-          return { ...defaults, ...storage };
+        get(defaults, callback) {
+          callback({ ...defaults, ...storage });
         },
-        async set(values) {
+        set(values, callback) {
           Object.assign(storage, values);
+          callback();
         }
       }
     },

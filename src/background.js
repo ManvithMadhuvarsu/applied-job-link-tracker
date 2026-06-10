@@ -29,10 +29,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "job-link-saver:clear") {
-    chrome.storage.local.set({ [STORAGE_KEY]: [] }, () => {
-      updateBadge([]);
-      sendResponse({ ok: true, entries: [] });
-    });
+    clearEntries()
+      .then(() => sendResponse({ ok: true, entries: [] }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
 
@@ -94,14 +93,50 @@ async function saveApplication(payload = {}, sender = {}) {
 }
 
 function getEntries() {
-  return chrome.storage.local.get({ [STORAGE_KEY]: [] }).then((result) => {
+  return storageGet({ [STORAGE_KEY]: [] }).then((result) => {
     return Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
   });
 }
 
 function setEntries(entries) {
-  return chrome.storage.local.set({ [STORAGE_KEY]: entries }).then(() => {
+  return storageSet({ [STORAGE_KEY]: entries }).then(() => {
     updateBadge(entries);
+  });
+}
+
+function clearEntries() {
+  return storageSet({ [STORAGE_KEY]: [] }).then(() => {
+    updateBadge([]);
+  });
+}
+
+function storageGet(defaults) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get(defaults, (result) => {
+      const error = chrome.runtime.lastError;
+
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+
+      resolve(result);
+    });
+  });
+}
+
+function storageSet(values) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set(values, () => {
+      const error = chrome.runtime.lastError;
+
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+
+      resolve();
+    });
   });
 }
 
