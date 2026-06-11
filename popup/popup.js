@@ -1,3 +1,4 @@
+const STORAGE_KEY = "jobApplicationLinks";
 const list = document.querySelector("#applications");
 const summary = document.querySelector("#summary");
 const emptyState = document.querySelector("#emptyState");
@@ -160,18 +161,49 @@ function deleteSelected() {
     return;
   }
 
+  const selectedIdentifiers = selectedEntries.map(getEntryKey).filter(Boolean);
+
   chrome.runtime.sendMessage({
     type: "job-link-saver:delete",
-    keys: selectedEntries.map(getEntryKey).filter(Boolean)
+    keys: selectedIdentifiers
   }, (response) => {
-    if (chrome.runtime.lastError || !response?.ok) {
-      summary.textContent = "Could not delete selected links.";
+    const runtimeError = chrome.runtime.lastError?.message || "";
+
+    if (runtimeError || !response?.ok) {
+      deleteSelectedFromPopupStorage(selectedIdentifiers, response?.error || runtimeError)
+        .catch((error) => {
+          summary.textContent = `Could not delete selected links: ${error.message}`;
+        });
       return;
     }
 
     entries = response.entries || [];
     selectedKeys = new Set();
     render();
+  });
+}
+
+async function deleteSelectedFromPopupStorage(selectedIdentifiers, originalError = "") {
+  const currentEntries = await popupStorageGetEntries();
+  const selectedSet = new Set(selectedIdentifiers);
+  const remainingEntries = currentEntries.filter((entry) => {
+    return !getEntryDeleteIdentifiers(entry).some((identifier) => selectedSet.has(identifier));
+  });
+
+  if (remainingEntries.length === currentEntries.length && selectedSet.size > 0) {
+    throw new Error(originalError || "No matching selected links were found.");
+  }
+
+  await popupStorageSetEntries(remainingEntries);
+  updateBadge(remainingEntries);
+  entries = remainingEntries;
+  selectedKeys = new Set();
+  render();
+}
+
+function getEntryDeleteIdentifiers(entry) {
+  return [entry?.key, entry?.url].filter((identifier) => {
+    return typeof identifier === "string" && identifier;
   });
 }
 
@@ -192,6 +224,49 @@ function clearAll() {
     selectedKeys = new Set();
     render();
   });
+}
+
+function popupStorageGetEntries() {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get({ [STORAGE_KEY]: [] }, (result) => {
+      const error = chrome.runtime.lastError;
+
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+
+      const savedEntries = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
+      resolve(savedEntries);
+    });
+  });
+}
+
+function popupStorageSetEntries(nextEntries) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set({ [STORAGE_KEY]: nextEntries }, () => {
+      const error = chrome.runtime.lastError;
+
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
+function updateBadge(nextEntries) {
+  if (!chrome.action?.setBadgeText) {
+    return;
+  }
+
+  const count = nextEntries.length;
+  const text = count ? String(Math.min(count, 999)) : "";
+
+  chrome.action.setBadgeText({ text });
+  chrome.action.setBadgeBackgroundColor?.({ color: "#2563eb" });
 }
 
 function formatDeletePrompt(count) {

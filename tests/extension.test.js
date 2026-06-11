@@ -346,6 +346,81 @@ describe("popup", () => {
     expect(deleteKeys).toEqual([legacyEntry.url]);
     expect(window.document.querySelectorAll(".application")).toHaveLength(0);
   });
+
+  it("falls back to popup storage when background delete messaging fails", async () => {
+    const dom = new JSDOM(fs.readFileSync(path.join(rootDir, "popup/popup.html"), "utf8"), {
+      url: "chrome-extension://test/popup/popup.html",
+      runScripts: "outside-only"
+    });
+    const { window } = dom;
+    let storedEntries = [
+      {
+        key: "frontend",
+        title: "Frontend Engineer",
+        url: "https://jobs.example.com/roles/frontend-engineer"
+      },
+      {
+        key: "backend",
+        title: "Backend Engineer",
+        url: "https://jobs.example.com/roles/backend-engineer"
+      }
+    ];
+    let currentLastError = null;
+    let badgeText = "";
+
+    window.chrome = {
+      runtime: {
+        get lastError() {
+          return currentLastError;
+        },
+        sendMessage(message, callback) {
+          if (message.type === "job-link-saver:list") {
+            callback({ ok: true, entries: storedEntries });
+            return;
+          }
+
+          if (message.type === "job-link-saver:delete") {
+            currentLastError = { message: "The message port closed before a response was received." };
+            callback(undefined);
+            currentLastError = null;
+          }
+        }
+      },
+      action: {
+        setBadgeText({ text }) {
+          badgeText = text;
+        },
+        setBadgeBackgroundColor: vi.fn()
+      },
+      storage: {
+        local: {
+          get(defaults, callback) {
+            queueMicrotask(() => {
+              callback({ ...defaults, jobApplicationLinks: storedEntries });
+            });
+          },
+          set(values, callback) {
+            queueMicrotask(() => {
+              storedEntries = values.jobApplicationLinks;
+              callback();
+            });
+          }
+        }
+      }
+    };
+    window.confirm = vi.fn().mockReturnValue(true);
+
+    window.eval(fs.readFileSync(path.join(rootDir, "popup/popup.js"), "utf8"));
+    window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
+
+    window.document.querySelectorAll(".selection-input")[0].click();
+    window.document.querySelector("#deleteSelected").click();
+    await waitFor(() => storedEntries.length === 1, 1000);
+
+    expect(storedEntries.map((entry) => entry.key)).toEqual(["backend"]);
+    expect(badgeText).toBe("1");
+    expect([...window.document.querySelectorAll(".title")].map((element) => element.textContent)).toEqual(["Backend Engineer"]);
+  });
 });
 
 function createBackgroundHarness() {
