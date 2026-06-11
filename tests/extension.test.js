@@ -209,7 +209,10 @@ describe("popup", () => {
 
     expect(window.document.querySelector(".title").textContent).toBe("Frontend Engineer");
     expect(window.document.querySelector(".url").textContent).toBe(sampleEntries[0].url);
+    expect(window.document.querySelector("#selectionSummary").textContent).toBe("0 selected");
 
+    window.document.querySelector(".selection-input").click();
+    expect(window.document.querySelector("#selectionSummary").textContent).toBe("1 selected");
     window.document.querySelector("#copyLinks").click();
     await Promise.resolve();
 

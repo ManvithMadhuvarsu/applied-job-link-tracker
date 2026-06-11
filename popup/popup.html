@@ -16,10 +16,16 @@
       </header>
 
       <section class="toolbar" aria-label="Saved link actions">
-        <button id="copyLinks" type="button">Copy Links</button>
+        <label class="select-all">
+          <input id="selectAll" type="checkbox">
+          <span>Select all</span>
+        </label>
+        <span id="selectionSummary" class="selection-summary">0 selected</span>
+        <button id="copyLinks" type="button">Copy</button>
         <button id="exportCsv" type="button">CSV</button>
         <button id="exportJson" type="button">JSON</button>
-        <button id="clearAll" type="button" class="danger">Clear</button>
+        <button id="deleteSelected" type="button" class="danger">Delete</button>
+        <button id="clearAll" type="button" class="danger secondary">Clear All</button>
       </section>
 
       <section id="emptyState" class="empty" hidden>

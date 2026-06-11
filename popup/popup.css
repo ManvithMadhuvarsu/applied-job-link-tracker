@@ -71,8 +71,48 @@ button.danger {
 
 .toolbar {
   display: grid;
-  grid-template-columns: 1fr 66px 66px 66px;
+  grid-template-columns: 1fr auto;
   gap: 8px;
+  align-items: center;
+}
+
+.toolbar button {
+  min-width: 58px;
+}
+
+.toolbar button:nth-of-type(1) {
+  grid-column: 1 / 2;
+}
+
+.toolbar button:nth-of-type(n + 2) {
+  grid-column: auto;
+}
+
+.select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  color: #2d374f;
+  font-weight: 650;
+}
+
+.select-all input,
+.selection-input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #2563eb;
+}
+
+.selection-summary {
+  justify-self: end;
+  color: #657087;
+  font-size: 12px;
+}
+
+.secondary {
+  grid-column: span 2;
 }
 
 .empty {
@@ -95,11 +135,29 @@ button.danger {
 
 .application {
   display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
   gap: 8px;
   border: 1px solid #dce1ec;
   border-radius: 8px;
   padding: 12px;
   background: #ffffff;
+}
+
+.application.selected {
+  border-color: #8fb4ff;
+  background: #f4f8ff;
+}
+
+.selection-cell {
+  display: flex;
+  justify-content: center;
+  padding-top: 1px;
+}
+
+.application-content {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
 }
 
 .title {
