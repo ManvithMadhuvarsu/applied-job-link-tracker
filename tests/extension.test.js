@@ -101,6 +101,34 @@ describe("background storage", () => {
     expect(harness.badgeText).toBe("1");
   });
 
+  it("deletes saved links when identified by URL", async () => {
+    const harness = createBackgroundHarness();
+
+    const firstSave = await harness.dispatchMessage({
+      type: "job-link-saver:save",
+      payload: {
+        url: "https://jobs.example.com/roles/frontend-engineer",
+        title: "Frontend Engineer"
+      }
+    });
+    const secondSave = await harness.dispatchMessage({
+      type: "job-link-saver:save",
+      payload: {
+        url: "https://jobs.example.com/roles/backend-engineer",
+        title: "Backend Engineer"
+      }
+    });
+
+    const deleteResponse = await harness.dispatchMessage({
+      type: "job-link-saver:delete",
+      keys: [firstSave.entry.url]
+    });
+
+    expect(deleteResponse.ok).toBe(true);
+    expect(deleteResponse.entries).toHaveLength(1);
+    expect(deleteResponse.entries[0].key).toBe(secondSave.entry.key);
+  });
+
   it("rejects malformed delete requests", async () => {
     const harness = createBackgroundHarness();
 

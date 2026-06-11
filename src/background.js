@@ -129,10 +129,18 @@ async function deleteEntries(keys = []) {
   }
 
   const entries = await getEntries();
-  const remainingEntries = entries.filter((entry) => !keySet.has(entry.key));
+  const remainingEntries = entries.filter((entry) => {
+    return !getEntryDeleteIdentifiers(entry).some((identifier) => keySet.has(identifier));
+  });
 
   await setEntries(remainingEntries);
   return remainingEntries;
+}
+
+function getEntryDeleteIdentifiers(entry) {
+  return [entry?.key, entry?.url].filter((identifier) => {
+    return typeof identifier === "string" && identifier;
+  });
 }
 
 function storageGet(defaults) {
