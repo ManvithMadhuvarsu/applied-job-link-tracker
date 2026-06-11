@@ -307,6 +307,45 @@ describe("popup", () => {
     expect(deleteKeys).toEqual(["frontend"]);
     expect([...window.document.querySelectorAll(".title")].map((element) => element.textContent)).toEqual(["Backend Engineer"]);
   });
+
+  it("deletes selected saved applications that do not have internal keys", async () => {
+    const dom = new JSDOM(fs.readFileSync(path.join(rootDir, "popup/popup.html"), "utf8"), {
+      url: "chrome-extension://test/popup/popup.html",
+      runScripts: "outside-only"
+    });
+    const { window } = dom;
+    const legacyEntry = {
+      title: "Legacy Job",
+      url: "https://jobs.example.com/roles/legacy-job"
+    };
+    let deleteKeys = [];
+
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          if (message.type === "job-link-saver:list") {
+            callback({ ok: true, entries: [legacyEntry] });
+          }
+
+          if (message.type === "job-link-saver:delete") {
+            deleteKeys = message.keys;
+            callback({ ok: true, entries: [] });
+          }
+        },
+        lastError: null
+      }
+    };
+    window.confirm = vi.fn().mockReturnValue(true);
+
+    window.eval(fs.readFileSync(path.join(rootDir, "popup/popup.js"), "utf8"));
+    window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
+
+    window.document.querySelector(".selection-input").click();
+    window.document.querySelector("#deleteSelected").click();
+
+    expect(deleteKeys).toEqual([legacyEntry.url]);
+    expect(window.document.querySelectorAll(".application")).toHaveLength(0);
+  });
 });
 
 function createBackgroundHarness() {

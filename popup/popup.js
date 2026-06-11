@@ -162,7 +162,7 @@ function deleteSelected() {
 
   chrome.runtime.sendMessage({
     type: "job-link-saver:delete",
-    keys: selectedEntries.map((entry) => entry.key).filter(Boolean)
+    keys: selectedEntries.map(getEntryKey).filter(Boolean)
   }, (response) => {
     if (chrome.runtime.lastError || !response?.ok) {
       summary.textContent = "Could not delete selected links.";
