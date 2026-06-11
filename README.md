@@ -8,7 +8,8 @@ A Chrome/Edge web extension that automatically saves direct job-post links when 
 - Detects likely application-completion signals, such as "Application submitted", "Thanks for applying", "You applied", submitted forms, and confirmation URLs.
 - Saves a cleaned direct job link, title, company, platform, timestamp, and detection evidence.
 - Deduplicates repeat captures of the same job.
-- Lets you view, copy, export CSV, export JSON, or clear saved links from the extension popup.
+- Lets you select saved jobs in the popup, then copy, export CSV, export JSON, or delete only those selected links.
+- Keeps a separate Clear All action for wiping the full saved history.
 
 ## Install locally
 
@@ -23,6 +24,10 @@ A Chrome/Edge web extension that automatically saves direct job-post links when 
    ```
 
 After that, the extension works automatically on HTTP and HTTPS pages, including embedded application frames. You do not need to click anything in the extension while applying.
+
+## Manage saved links
+
+Open the extension popup to review saved applications. Select one or more saved jobs, then use Copy, CSV, JSON, or Delete to act only on the selected links. Use Clear All only when you want to remove the entire saved list.
 
 ## Validate locally
 
