@@ -15,8 +15,9 @@ let selectedKeys = new Set();
 document.addEventListener("DOMContentLoaded", loadEntries);
 selectAllCheckbox.addEventListener("change", toggleAll);
 copyLinksButton.addEventListener("click", copyLinks);
-exportCsvButton.addEventListener("click", () => downloadFile("job-applications.csv", toCsv(entries), "text/csv"));
-exportJsonButton.addEventListener("click", () => downloadFile("job-applications.json", JSON.stringify(entries, null, 2), "application/json"));
+exportCsvButton.addEventListener("click", () => downloadFile("selected-job-applications.csv", toCsv(getSelectedEntries()), "text/csv"));
+exportJsonButton.addEventListener("click", () => downloadFile("selected-job-applications.json", JSON.stringify(getSelectedEntries(), null, 2), "application/json"));
+deleteSelectedButton.addEventListener("click", deleteSelected);
 clearAllButton.addEventListener("click", clearAll);
 
 function loadEntries() {
@@ -119,21 +120,59 @@ function getEntryKey(entry) {
   return entry.key || entry.url;
 }
 
+function getSelectedEntries() {
+  return entries.filter((entry) => selectedKeys.has(getEntryKey(entry)));
+}
+
 async function copyLinks() {
-  const text = entries.map((entry) => entry.url).join("\n");
+  const selectedEntries = getSelectedEntries();
+
+  if (selectedEntries.length === 0) {
+    return;
+  }
+
+  const text = selectedEntries.map((entry) => entry.url).join("\n");
 
   try {
     await navigator.clipboard.writeText(text);
     copyLinksButton.textContent = "Copied";
     window.setTimeout(() => {
-      copyLinksButton.textContent = "Copy Links";
+      copyLinksButton.textContent = "Copy";
     }, 1400);
   } catch {
     copyLinksButton.textContent = "Copy Failed";
     window.setTimeout(() => {
-      copyLinksButton.textContent = "Copy Links";
+      copyLinksButton.textContent = "Copy";
     }, 1400);
   }
+}
+
+function deleteSelected() {
+  const selectedEntries = getSelectedEntries();
+
+  if (selectedEntries.length === 0) {
+    return;
+  }
+
+  const confirmed = window.confirm(formatDeletePrompt(selectedEntries.length));
+
+  if (!confirmed) {
+    return;
+  }
+
+  chrome.runtime.sendMessage({
+    type: "job-link-saver:delete",
+    keys: selectedEntries.map((entry) => entry.key).filter(Boolean)
+  }, (response) => {
+    if (chrome.runtime.lastError || !response?.ok) {
+      summary.textContent = "Could not delete selected links.";
+      return;
+    }
+
+    entries = response.entries || [];
+    selectedKeys = new Set();
+    render();
+  });
 }
 
 function clearAll() {
@@ -150,8 +189,15 @@ function clearAll() {
     }
 
     entries = [];
+    selectedKeys = new Set();
     render();
   });
+}
+
+function formatDeletePrompt(count) {
+  return count === 1
+    ? "Delete 1 selected job application link?"
+    : `Delete ${count} selected job application links?`;
 }
 
 function toCsv(rows) {

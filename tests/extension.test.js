@@ -176,20 +176,32 @@ describe("content script capture", () => {
 });
 
 describe("popup", () => {
-  it("renders saved applications and exports URLs", async () => {
+  it("copies only selected saved applications", async () => {
     const dom = new JSDOM(fs.readFileSync(path.join(rootDir, "popup/popup.html"), "utf8"), {
       url: "chrome-extension://test/popup/popup.html",
       runScripts: "outside-only"
     });
     const { window } = dom;
-    const sampleEntries = [{
-      title: "Frontend Engineer",
-      company: "Example Co",
-      platform: "jobs.example.com",
-      url: "https://jobs.example.com/roles/frontend-engineer",
-      firstDetectedAt: "2026-06-08T12:00:00.000Z",
-      evidence: "Success message: Application submitted"
-    }];
+    const sampleEntries = [
+      {
+        key: "frontend",
+        title: "Frontend Engineer",
+        company: "Example Co",
+        platform: "jobs.example.com",
+        url: "https://jobs.example.com/roles/frontend-engineer",
+        firstDetectedAt: "2026-06-08T12:00:00.000Z",
+        evidence: "Success message: Application submitted"
+      },
+      {
+        key: "backend",
+        title: "Backend Engineer",
+        company: "Example Co",
+        platform: "jobs.example.com",
+        url: "https://jobs.example.com/roles/backend-engineer",
+        firstDetectedAt: "2026-06-08T12:05:00.000Z",
+        evidence: "Success message: Application submitted"
+      }
+    ];
     const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
 
     window.chrome = {
@@ -211,12 +223,61 @@ describe("popup", () => {
     expect(window.document.querySelector(".url").textContent).toBe(sampleEntries[0].url);
     expect(window.document.querySelector("#selectionSummary").textContent).toBe("0 selected");
 
-    window.document.querySelector(".selection-input").click();
+    window.document.querySelectorAll(".selection-input")[1].click();
     expect(window.document.querySelector("#selectionSummary").textContent).toBe("1 selected");
     window.document.querySelector("#copyLinks").click();
     await Promise.resolve();
 
-    expect(clipboard.writeText).toHaveBeenCalledWith(sampleEntries[0].url);
+    expect(clipboard.writeText).toHaveBeenCalledWith(sampleEntries[1].url);
+  });
+
+  it("deletes selected saved applications", async () => {
+    const dom = new JSDOM(fs.readFileSync(path.join(rootDir, "popup/popup.html"), "utf8"), {
+      url: "chrome-extension://test/popup/popup.html",
+      runScripts: "outside-only"
+    });
+    const { window } = dom;
+    const sampleEntries = [
+      {
+        key: "frontend",
+        title: "Frontend Engineer",
+        url: "https://jobs.example.com/roles/frontend-engineer"
+      },
+      {
+        key: "backend",
+        title: "Backend Engineer",
+        url: "https://jobs.example.com/roles/backend-engineer"
+      }
+    ];
+    const confirm = vi.fn().mockReturnValue(true);
+    let deleteKeys = [];
+
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          if (message.type === "job-link-saver:list") {
+            callback({ ok: true, entries: sampleEntries });
+          }
+
+          if (message.type === "job-link-saver:delete") {
+            deleteKeys = message.keys;
+            callback({ ok: true, entries: sampleEntries.filter((entry) => !message.keys.includes(entry.key)) });
+          }
+        },
+        lastError: null
+      }
+    };
+    window.confirm = confirm;
+
+    window.eval(fs.readFileSync(path.join(rootDir, "popup/popup.js"), "utf8"));
+    window.document.dispatchEvent(new window.Event("DOMContentLoaded"));
+
+    window.document.querySelectorAll(".selection-input")[0].click();
+    window.document.querySelector("#deleteSelected").click();
+
+    expect(confirm).toHaveBeenCalledWith("Delete 1 selected job application link?");
+    expect(deleteKeys).toEqual(["frontend"]);
+    expect([...window.document.querySelectorAll(".title")].map((element) => element.textContent)).toEqual(["Backend Engineer"]);
   });
 });
 
