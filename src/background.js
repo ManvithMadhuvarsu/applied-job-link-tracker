@@ -35,6 +35,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "job-link-saver:delete") {
+    deleteEntries(message.keys)
+      .then((entries) => sendResponse({ ok: true, entries }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
   return false;
 });
 
@@ -108,6 +115,24 @@ function clearEntries() {
   return storageSet({ [STORAGE_KEY]: [] }).then(() => {
     updateBadge([]);
   });
+}
+
+async function deleteEntries(keys = []) {
+  if (!Array.isArray(keys)) {
+    throw new Error("Delete request must include an array of keys.");
+  }
+
+  const keySet = new Set(keys.filter((key) => typeof key === "string" && key));
+
+  if (keySet.size === 0) {
+    return getEntries();
+  }
+
+  const entries = await getEntries();
+  const remainingEntries = entries.filter((entry) => !keySet.has(entry.key));
+
+  await setEntries(remainingEntries);
+  return remainingEntries;
 }
 
 function storageGet(defaults) {
