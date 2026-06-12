@@ -1,5 +1,17 @@
 const STORAGE_KEY = "jobApplicationLinks";
 const MAX_ENTRIES = 1000;
+const BLOCKED_CAPTURE_HOSTS = [
+  "mail.google.com",
+  "inbox.google.com",
+  "outlook.live.com",
+  "outlook.office.com",
+  "mail.yahoo.com",
+  "mail.proton.me",
+  "proton.me",
+  "app.fastmail.com",
+  "mail.zoho.com",
+  "mail.aol.com"
+];
 
 chrome.runtime.onInstalled.addListener(() => {
   updateBadge();
@@ -47,16 +59,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 async function saveApplication(payload = {}, sender = {}) {
   const cleanedUrl = cleanHttpUrl(payload.url);
+  const cleanedPageUrl = cleanHttpUrl(payload.pageUrl);
+  const senderUrl = sender.tab?.url ? cleanHttpUrl(sender.tab.url) : "";
 
   if (!cleanedUrl) {
     return { ok: false, reason: "invalid_url" };
+  }
+
+  if (isBlockedCaptureUrl(cleanedUrl) || isBlockedCaptureUrl(cleanedPageUrl) || isBlockedCaptureUrl(senderUrl)) {
+    return { ok: false, reason: "blocked_host" };
   }
 
   const key = normalizeKey(payload.normalizedUrl || cleanedUrl);
   const now = new Date().toISOString();
   const entries = await getEntries();
   const existingIndex = entries.findIndex((entry) => entry.key === key);
-  const senderUrl = sender.tab?.url ? cleanHttpUrl(sender.tab.url) : "";
 
   if (existingIndex >= 0) {
     const existing = entries[existingIndex];
@@ -67,7 +84,7 @@ async function saveApplication(payload = {}, sender = {}) {
       company: pickLatest(payload.company, existing.company),
       platform: pickLatest(payload.platform, existing.platform),
       url: cleanedUrl,
-      pageUrl: cleanHttpUrl(payload.pageUrl) || senderUrl || existing.pageUrl || cleanedUrl,
+      pageUrl: cleanedPageUrl || senderUrl || existing.pageUrl || cleanedUrl,
       lastDetectedAt: payload.detectedAt || now,
       captureCount: (existing.captureCount || 1) + 1,
       evidence: limitText(payload.evidence) || existing.evidence || "",
@@ -81,7 +98,7 @@ async function saveApplication(payload = {}, sender = {}) {
   const entry = {
     key,
     url: cleanedUrl,
-    pageUrl: cleanHttpUrl(payload.pageUrl) || senderUrl || cleanedUrl,
+    pageUrl: cleanedPageUrl || senderUrl || cleanedUrl,
     title: limitText(payload.title) || "Untitled job",
     company: limitText(payload.company) || "",
     platform: limitText(payload.platform) || hostnameFromUrl(cleanedUrl),
@@ -101,7 +118,10 @@ async function saveApplication(payload = {}, sender = {}) {
 
 function getEntries() {
   return storageGet({ [STORAGE_KEY]: [] }).then((result) => {
-    return Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
+    const entries = Array.isArray(result[STORAGE_KEY]) ? result[STORAGE_KEY] : [];
+    return entries.filter((entry) => {
+      return !isBlockedCaptureUrl(entry.url) && !isBlockedCaptureUrl(entry.pageUrl);
+    });
   });
 }
 
@@ -233,6 +253,21 @@ function cleanHttpUrl(value) {
     return url.toString();
   } catch {
     return "";
+  }
+}
+
+function isBlockedCaptureUrl(value) {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const host = new URL(value).hostname.replace(/^www\./i, "").toLowerCase();
+    return BLOCKED_CAPTURE_HOSTS.some((blockedHost) => {
+      return host === blockedHost || host.endsWith(`.${blockedHost}`);
+    });
+  } catch {
+    return false;
   }
 }
 

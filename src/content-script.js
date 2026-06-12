@@ -35,6 +35,22 @@
     "hirist.com",
     "instahyre.com"
   ];
+  const BLOCKED_CAPTURE_HOSTS = [
+    "mail.google.com",
+    "inbox.google.com",
+    "outlook.live.com",
+    "outlook.office.com",
+    "mail.yahoo.com",
+    "mail.proton.me",
+    "proton.me",
+    "app.fastmail.com",
+    "mail.zoho.com",
+    "mail.aol.com"
+  ];
+
+  if (isBlockedCaptureHost()) {
+    return;
+  }
 
   const APPLICATION_ACTION_PATTERNS = [
     /\bapply\b/i,
@@ -389,6 +405,13 @@
     ].join(" "));
 
     return JOB_CONTEXT_PATTERN.test(text) && /apply|application|resume|candidate|career|hiring|position/i.test(text);
+  }
+
+  function isBlockedCaptureHost() {
+    const host = location.hostname.replace(/^www\./i, "").toLowerCase();
+    return BLOCKED_CAPTURE_HOSTS.some((blockedHost) => {
+      return host === blockedHost || host.endsWith(`.${blockedHost}`);
+    });
   }
 
   function getBestJobUrl(fallbackUrl = "") {

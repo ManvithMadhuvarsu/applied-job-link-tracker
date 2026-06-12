@@ -13,6 +13,7 @@ describe("manifest", () => {
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.background.service_worker).toBe("src/background.js");
     expect(manifest.content_scripts[0].all_frames).toBe(true);
+    expect(manifest.content_scripts[0].exclude_matches).toContain("https://mail.google.com/*");
     expect(manifest.action.default_popup).toBe("popup/popup.html");
   });
 });
@@ -51,6 +52,45 @@ describe("background storage", () => {
     });
     expect(response.entries[0].url).toBe("https://linkedin.com/jobs/view/123/");
     expect(harness.badgeText).toBe("1");
+  });
+
+  it("rejects saves from webmail pages", async () => {
+    const harness = createBackgroundHarness();
+
+    const response = await harness.dispatchMessage({
+      type: "job-link-saver:save",
+      payload: {
+        url: "https://mail.google.com/mail/",
+        pageUrl: "https://mail.google.com/mail/u/0/#inbox",
+        title: "Search Try Gemini",
+        evidence: "Success message: Thank you for applying"
+      }
+    }, { tab: { url: "https://mail.google.com/mail/u/0/#inbox" } });
+    const listResponse = await harness.dispatchMessage({ type: "job-link-saver:list" });
+
+    expect(response).toEqual({ ok: false, reason: "blocked_host" });
+    expect(listResponse.entries).toEqual([]);
+  });
+
+  it("filters existing webmail entries from saved links", async () => {
+    const harness = createBackgroundHarness([
+      {
+        key: "mail",
+        url: "https://mail.google.com/mail/",
+        pageUrl: "https://mail.google.com/mail/u/0/#inbox",
+        title: "Search Try Gemini"
+      },
+      {
+        key: "job",
+        url: "https://jobs.example.com/roles/frontend-engineer",
+        title: "Frontend Engineer"
+      }
+    ]);
+
+    const response = await harness.dispatchMessage({ type: "job-link-saver:list" });
+
+    expect(response.entries).toHaveLength(1);
+    expect(response.entries[0].key).toBe("job");
   });
 
   it("clears saved links and resets the badge", async () => {
@@ -200,6 +240,48 @@ describe("content script capture", () => {
       company: "Example Co"
     });
     expect(messages[0].payload.evidence).toContain("successfully submitted");
+  });
+
+  it("does not capture application emails in Gmail", async () => {
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Search Try Gemini</title>
+        </head>
+        <body>
+          <main>
+            <h1>Search Try Gemini</h1>
+            <article>
+              no-reply Job/Applied Thank you for applying to Agoda.
+              Thanks for applying to the position of Associate Data Analyst.
+            </article>
+          </main>
+        </body>
+      </html>
+    `, {
+      url: "https://mail.google.com/mail/u/0/#inbox",
+      pretendToBeVisual: true,
+      runScripts: "outside-only"
+    });
+
+    const messages = [];
+    const { window } = dom;
+
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          messages.push(message);
+          callback?.({ ok: true });
+        },
+        lastError: null
+      }
+    };
+
+    window.eval(fs.readFileSync(path.join(rootDir, "src/content-script.js"), "utf8"));
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    expect(messages).toEqual([]);
   });
 });
 
@@ -423,8 +505,8 @@ describe("popup", () => {
   });
 });
 
-function createBackgroundHarness() {
-  const storage = {};
+function createBackgroundHarness(initialEntries = []) {
+  const storage = { jobApplicationLinks: initialEntries };
   let messageListener;
   let badgeText = "";
   const chrome = {
@@ -465,9 +547,9 @@ function createBackgroundHarness() {
     get badgeText() {
       return badgeText;
     },
-    dispatchMessage(message) {
+    dispatchMessage(message, sender = { tab: { url: "https://jobs.example.com/roles/frontend-engineer" } }) {
       return new Promise((resolve) => {
-        messageListener(message, { tab: { url: "https://jobs.example.com/roles/frontend-engineer" } }, resolve);
+        messageListener(message, sender, resolve);
       });
     }
   };

@@ -19,6 +19,17 @@
         "http://*/*",
         "https://*/*"
       ],
+      "exclude_matches": [
+        "https://mail.google.com/*",
+        "https://inbox.google.com/*",
+        "https://outlook.live.com/*",
+        "https://outlook.office.com/*",
+        "https://mail.yahoo.com/*",
+        "https://mail.proton.me/*",
+        "https://app.fastmail.com/*",
+        "https://mail.zoho.com/*",
+        "https://mail.aol.com/*"
+      ],
       "js": [
         "src/content-script.js"
       ],
