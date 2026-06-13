@@ -17,11 +17,8 @@ A Chrome/Edge web extension that automatically saves direct job-post links when 
 2. Go to `chrome://extensions` or `edge://extensions`.
 3. Enable `Developer mode`.
 4. Choose `Load unpacked`.
-5. Select this folder:
-
-   ```text
-   D:\Projects\job-application-link-saver
-   ```
+5. Select the folder where you cloned this repository (the folder that
+   contains `manifest.json`).
 
 After that, the extension works automatically on HTTP and HTTPS pages, including embedded application frames. You do not need to click anything in the extension while applying.
 
