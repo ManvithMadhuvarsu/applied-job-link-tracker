@@ -257,13 +257,15 @@
 
     const jobUrl = getBestJobUrl(state.pending?.jobUrl);
     const normalizedUrl = normalizeForMessage(jobUrl);
+    const now = Date.now();
     const lastSavedAt = state.recentSaves.get(normalizedUrl) || 0;
 
-    if (Date.now() - lastSavedAt < SAVE_COOLDOWN_MS) {
+    if (now - lastSavedAt < SAVE_COOLDOWN_MS) {
       return;
     }
 
-    state.recentSaves.set(normalizedUrl, Date.now());
+    pruneRecentSaves(now);
+    state.recentSaves.set(normalizedUrl, now);
 
     const payload = {
       url: jobUrl,
@@ -287,6 +289,14 @@
         state.pending = null;
       }
     );
+  }
+
+  function pruneRecentSaves(now) {
+    for (const [url, savedAt] of state.recentSaves) {
+      if (now - savedAt >= SAVE_COOLDOWN_MS) {
+        state.recentSaves.delete(url);
+      }
+    }
   }
 
   function detectCompletionSignal() {
