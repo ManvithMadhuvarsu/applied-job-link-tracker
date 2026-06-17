@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Job Application Link Saver",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Automatically saves direct links to job posts after an application appears to be submitted.",
   "permissions": [
     "storage"
@@ -28,7 +28,12 @@
         "https://mail.proton.me/*",
         "https://app.fastmail.com/*",
         "https://mail.zoho.com/*",
-        "https://mail.aol.com/*"
+        "https://mail.aol.com/*",
+        "https://claude.ai/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://github.com/*",
+        "https://stackoverflow.com/*"
       ],
       "js": [
         "src/content-script.js"

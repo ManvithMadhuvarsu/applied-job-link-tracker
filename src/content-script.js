@@ -45,7 +45,12 @@
     "proton.me",
     "app.fastmail.com",
     "mail.zoho.com",
-    "mail.aol.com"
+    "mail.aol.com",
+    "claude.ai",
+    "chatgpt.com",
+    "chat.openai.com",
+    "github.com",
+    "stackoverflow.com"
   ];
 
   if (isBlockedCaptureHost()) {
@@ -322,7 +327,7 @@
       evidence.push(statusEvidence);
     }
 
-    if (!recentPending && !successEvidence && !urlLooksComplete) {
+    if (!recentPending && !urlLooksComplete) {
       return { shouldSave: false, evidence: "" };
     }
 
@@ -421,6 +426,10 @@
       return knownUrl;
     }
 
+    if (fallbackUrl) {
+      return cleanUrl(fallbackUrl);
+    }
+
     const canonicalUrl = getCanonicalUrl();
 
     if (canonicalUrl) {
@@ -431,10 +440,6 @@
 
     if (openGraphUrl) {
       return cleanUrl(openGraphUrl);
-    }
-
-    if (fallbackUrl) {
-      return cleanUrl(fallbackUrl);
     }
 
     return cleanUrl(location.href);

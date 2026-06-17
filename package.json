@@ -1,6 +1,6 @@
 {
   "name": "applied-job-link-tracker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A Chrome/Edge web extension that automatically saves direct job-post links when it detects that a job application has been submitted.",
   "private": true,
   "scripts": {

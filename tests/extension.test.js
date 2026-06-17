@@ -283,6 +283,114 @@ describe("content script capture", () => {
 
     expect(messages).toEqual([]);
   });
+
+  it("does not capture pages that merely discuss application-success phrases without an apply action", async () => {
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Job application link tracker extension - chat</title>
+        </head>
+        <body>
+          <main>
+            <h1>Job application link tracker extension</h1>
+            <article>
+              It detects likely application-completion signals, such as
+              "your application has been successfully submitted" and
+              "thanks for applying", then saves a cleaned direct job link.
+              We discussed the candidate experience, resume parsing, and
+              career page heuristics for this hiring tool in detail.
+            </article>
+          </main>
+        </body>
+      </html>
+    `, {
+      url: "https://example-chat.invalid/conversations/abc123",
+      pretendToBeVisual: true,
+      runScripts: "outside-only"
+    });
+
+    const messages = [];
+    const { window } = dom;
+
+    window.chrome = {
+      runtime: {
+        sendMessage(message, callback) {
+          messages.push(message);
+          callback?.({ ok: true });
+        },
+        lastError: null
+      }
+    };
+
+    window.eval(fs.readFileSync(path.join(rootDir, "src/content-script.js"), "utf8"));
+    await new Promise((resolve) => setTimeout(resolve, 1800));
+
+    expect(messages).toEqual([]);
+  });
+
+  it("keeps distinct applications separate even when the post-submit confirmation page shares a generic canonical URL", async () => {
+    async function captureApplication(jobPath, jobTitle) {
+      const dom = new JSDOM(`
+        <!doctype html>
+        <html>
+          <head>
+            <title>${jobTitle} - Careers</title>
+          </head>
+          <body>
+            <main>
+              <h1>${jobTitle}</h1>
+              <p>Apply for this career opening and join our hiring team as a candidate.</p>
+              <button id="apply">Submit application</button>
+            </main>
+          </body>
+        </html>
+      `, {
+        url: `https://careers.example.com${jobPath}`,
+        pretendToBeVisual: true,
+        runScripts: "outside-only"
+      });
+
+      const messages = [];
+      const { window } = dom;
+
+      window.chrome = {
+        runtime: {
+          sendMessage(message, callback) {
+            messages.push(message);
+            callback?.({ ok: true });
+          },
+          lastError: null
+        }
+      };
+
+      window.eval(fs.readFileSync(path.join(rootDir, "src/content-script.js"), "utf8"));
+      window.document.querySelector("#apply").dispatchEvent(
+        new window.MouseEvent("click", { bubbles: true })
+      );
+
+      // Simulate the ATS redirecting to a shared, job-agnostic confirmation
+      // page (e.g. Workday/SmartRecruiters-style flows), the scenario that
+      // was previously causing every application to collapse onto the same
+      // saved entry.
+      window.history.pushState(null, "", "https://careers.example.com/apply/confirmation");
+      const canonical = window.document.createElement("link");
+      canonical.rel = "canonical";
+      canonical.href = "https://careers.example.com/apply/confirmation";
+      window.document.head.appendChild(canonical);
+      window.document.querySelector("main").innerHTML = "<p>Thanks for applying!</p>";
+
+      await waitFor(() => messages.length > 0, 3000);
+      return messages[0].payload.url;
+    }
+
+    const firstUrl = await captureApplication("/jobs/111/software-engineer", "Software Engineer");
+    const secondUrl = await captureApplication("/jobs/222/data-analyst", "Data Analyst");
+
+    expect(firstUrl).toBe("https://careers.example.com/jobs/111/software-engineer");
+    expect(secondUrl).toBe("https://careers.example.com/jobs/222/data-analyst");
+    expect(firstUrl).not.toBe(secondUrl);
+  });
 });
 
 describe("popup", () => {

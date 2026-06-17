@@ -10,7 +10,12 @@ const BLOCKED_CAPTURE_HOSTS = [
   "proton.me",
   "app.fastmail.com",
   "mail.zoho.com",
-  "mail.aol.com"
+  "mail.aol.com",
+  "claude.ai",
+  "chatgpt.com",
+  "chat.openai.com",
+  "github.com",
+  "stackoverflow.com"
 ];
 
 chrome.runtime.onInstalled.addListener(() => {
